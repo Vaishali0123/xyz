@@ -46,6 +46,7 @@ function createSlug(title) {
 
 export async function generateMetadata(props) {
   const params = await props.params;
+  const { blog } = params;
   const numericPostId = decodeURIComponent(params.postid);
   const postid = decodePostId(numericPostId);
 
