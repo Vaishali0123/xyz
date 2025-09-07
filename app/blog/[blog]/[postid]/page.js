@@ -185,9 +185,9 @@ export async function generateMetadata({ params }) {
 
   // const postId = decodePostId(decodeURIComponent(postid));
   const numericPostId = decodeURIComponent(params.postid);
-
-  const post = postId ? await getpostdetails(numericPostId) : null;
   const postid = decodePostId(numericPostId);
+  const post = postid ? await getpostdetails(numericPostId) : null;
+
   const blogTitle = post?.title?.rendered
     ? post.title.rendered
     : decodeURIComponent(blog.replace(/-/g, " "));
