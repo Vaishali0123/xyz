@@ -180,35 +180,58 @@ function createSlug(title) {
 //     },
 //   };
 // }
-export async function generateMetadata({ params }) {
-  const { blog } = params;
 
-  // const postId = decodePostId(decodeURIComponent(postid));
-  const numericPostId = decodeURIComponent(params.postid);
+export async function generateMetadata(props) {
+  const params = await props.params;
+  const { blog, postid: rawPostId } = params;
+
+  const numericPostId = decodeURIComponent(rawPostId);
   const postid = decodePostId(numericPostId);
-  const post = postid ? await getpostdetails(numericPostId) : null;
 
+  // ✅ Default metadata fallback
+  const defaultMetadata = {
+    title: "Costa Rican Insurance - Blog",
+    description:
+      "Read the latest blog posts from Costa Rican Insurance about insurance solutions in Costa Rica.",
+    alternates: { canonical: "https://costaricaninsurance.com/blog" },
+    robots: { index: true, follow: true },
+  };
+
+  let post = null;
+  try {
+    post = await getpostdetails(postid);
+  } catch (err) {
+    console.warn("❌ Error fetching post details:", err);
+    return defaultMetadata;
+  }
+
+  if (!post) return defaultMetadata;
+
+  // ✅ Title handling
   const blogTitle = post?.title?.rendered
     ? post.title.rendered
     : decodeURIComponent(blog.replace(/-/g, " "));
 
-  const description = post?.content?.rendered
-    ? (() => {
-        const text = stripHtml(post.content.rendered).replace(
-          /\[&hellip;\]/g,
-          "..."
-        );
-        return text.length > 160 ? text.slice(0, 160) + "..." : text;
-      })()
+  const rawTitle = post?.title?.rendered || "Costa Rican Insurance - Blog";
+  //     .replace(/\[&hellip;\]/g, "...")
+  //     .slice(0, 160);
+  // ✅ Description handling
+  const description = post?.excerpt?.rendered
+    ? stripHtml(post.excerpt?.rendered || "")
+    : post?.content?.rendered
+    ? stripHtml(post.excerpt?.rendered || "")
     : "Read the latest blog from Costa Rican Insurance about insurance solutions in Costa Rica.";
 
-  const url = `https://costaseo.vercel.app/blog/${blogTitle
-    .replace(/\s+/g, "-")
-    .replace(/[^a-zA-Z0-9-]/g, "")}/${postid}`;
+  // ✅ Canonical URL
+  // const slug = post?.slug || createSlug(blogTitle);
+  const url = `https://costaricaninsurance.com/blog/${blogTitle.replace(
+    /\s+/g,
+    "-"
+  )}/${rawPostId}`;
 
-  const featuredImage =
-    post?.featured_media_url ||
-    "https://costaseo.vercel.app/default-blog-image.jpg";
+  // ✅ Featured image handling
+  const defaultImage = "https://costaricaninsurance.com/default-blog-image.jpg";
+  const featuredImage = defaultImage; // later: fetch wp-json/wp/v2/media/{id}
 
   return {
     title: blogTitle,
@@ -218,36 +241,69 @@ export async function generateMetadata({ params }) {
         0,
         255
       ),
+    authors: [{ name: "Costa Rican Insurance" }],
+
+    // ✅ Canonical
     alternates: { canonical: url },
+
+    // ✅ OpenGraph
     openGraph: {
       title: blogTitle,
       description,
       url,
       siteName: "Costa Rican Insurance",
+      locale: "en_US",
       type: "article",
+      publishedTime: post.date,
+      modifiedTime: post.modified,
+      authors: ["Costa Rican Insurance"],
+      section: "Insurance",
+      tags: post?.tags || ["insurance", "Costa Rica"],
       images: [
         {
           url: featuredImage,
           width: 1200,
           height: 630,
           alt: blogTitle,
+          type: "image/jpeg",
         },
       ],
     },
+
+    // ✅ Twitter
     twitter: {
       card: "summary_large_image",
       title: blogTitle,
       description,
-      images: [featuredImage],
       creator: "@costaricanins",
       site: "@costaricanins",
+      images: [featuredImage],
     },
+
+    // ✅ Robots
     robots: {
       index: true,
       follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
+    },
+
+    // ✅ Extra meta
+    other: {
+      "article:published_time": post.date,
+      "article:modified_time": post.modified,
+      "article:author": "Costa Rican Insurance",
+      "article:section": "Insurance",
+      "og:updated_time": post.modified,
     },
   };
 }
+
 export default async function Page({ params }) {
   const numericPostId = decodeURIComponent(params.postid);
   const postid = decodePostId(numericPostId);
