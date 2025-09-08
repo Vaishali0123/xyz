@@ -181,6 +181,43 @@ function createSlug(title) {
 //   };
 // }
 
+// ✅ Utility to clean SEO text (strip HTML + decode entities)
+function cleanSeoText(html = "", maxLength = 160) {
+  if (!html) return "";
+
+  // 1. Remove images, videos, scripts, styles, iframes completely
+  let text = html
+    .replace(/<(img|iframe|video|script|style)[^>]*>.*?<\/\1>/gi, "")
+    .replace(/<(img|iframe|video|script|style)[^>]*>/gi, "")
+    // 2. Remove remaining HTML tags
+    .replace(/<[^>]+>/g, " ")
+    // 3. Collapse multiple spaces/newlines
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // 4. Decode common HTML entities
+  const entities = {
+    "&nbsp;": " ",
+    "&amp;": "&",
+    "&quot;": '"',
+    "&#39;": "'",
+    "&apos;": "'",
+    "&lt;": "<",
+    "&gt;": ">",
+    "&hellip;": "…",
+    "&ndash;": "–",
+    "&mdash;": "—",
+  };
+
+  text = text.replace(
+    new RegExp(Object.keys(entities).join("|"), "g"),
+    (match) => entities[match] || match
+  );
+
+  // 5. Truncate safely
+  return text.length > maxLength ? text.slice(0, maxLength).trim() : text;
+}
+
 export async function generateMetadata(props) {
   const params = await props.params;
   const { blog, postid: rawPostId } = params;
@@ -188,7 +225,7 @@ export async function generateMetadata(props) {
   const numericPostId = decodeURIComponent(rawPostId);
   const postid = decodePostId(numericPostId);
 
-  // ✅ Default metadata fallback
+  // ✅ Default fallback metadata
   const defaultMetadata = {
     title: "Costa Rican Insurance - Blog",
     description:
@@ -207,31 +244,26 @@ export async function generateMetadata(props) {
 
   if (!post) return defaultMetadata;
 
-  // ✅ Title handling
-  const blogTitle = post?.title?.rendered
-    ? post.title.rendered
-    : decodeURIComponent(blog.replace(/-/g, " "));
+  // ✅ Title
+  const blogTitle =
+    cleanSeoText(post?.title?.rendered, 60) ||
+    decodeURIComponent(blog.replace(/-/g, " "));
 
-  const rawTitle = post?.title?.rendered || "Costa Rican Insurance - Blog";
-  //     .replace(/\[&hellip;\]/g, "...")
-  //     .slice(0, 160);
-  // ✅ Description handling
-  const description = post?.excerpt?.rendered
-    ? stripHtml(post.excerpt?.rendered || "")
-    : post?.content?.rendered
-    ? stripHtml(post.excerpt?.rendered || "")
-    : "Read the latest blog from Costa Rican Insurance about insurance solutions in Costa Rica.";
+  // ✅ Description
+  const description =
+    cleanSeoText(post?.excerpt?.rendered, 160) ||
+    cleanSeoText(post?.content?.rendered, 160) ||
+    "Read the latest blog from Costa Rican Insurance about insurance solutions in Costa Rica.";
 
   // ✅ Canonical URL
-  // const slug = post?.slug || createSlug(blogTitle);
   const url = `https://costaricaninsurance.com/blog/${blogTitle.replace(
     /\s+/g,
     "-"
   )}/${rawPostId}`;
 
-  // ✅ Featured image handling
+  // ✅ Featured Image (placeholder for now)
   const defaultImage = "https://costaricaninsurance.com/default-blog-image.jpg";
-  const featuredImage = defaultImage; // later: fetch wp-json/wp/v2/media/{id}
+  const featuredImage = defaultImage;
 
   return {
     title: blogTitle,
